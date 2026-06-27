@@ -1,0 +1,81 @@
+FROM alpine:3.24
+
+ARG UID
+ARG GID
+ENV UID=${UID}
+ENV GID=${GID}
+
+ARG USER
+ARG GROUP
+ENV USER=${USER}
+ENV GROUP=${GROUP}
+
+# Install base shell utilities and clean sudo configuration
+RUN apk add --no-cache bash sudo \
+    && addgroup -S --gid ${GID} ${GROUP} \
+    && adduser -S --uid ${UID} -h /home/${USER} -s /bin/bash -G ${GROUP} ${USER} \
+    && echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    && chmod u+s /bin/su
+
+# Install system dependencies needed for compiling Rust crates natively
+RUN apk add --no-cache \
+    curl \
+    wget \
+    openssl \
+    openssl-dev \
+    musl-dev \
+    libffi-dev \
+    build-base \
+    nginx \
+    ## OS extras
+    make \
+    git \
+    nano \
+    #zip \
+    #ffmpeg \
+    ## Process Control System
+    supervisor
+
+# Create workspace project directory
+RUN mkdir -p /var/www
+WORKDIR /var/www
+
+# Configure NGINX
+COPY config/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY config/nginx/conf.d /etc/nginx/conf.d/
+RUN rm -rf /var/www/html
+RUN chown -R ${USER}:${GROUP} /var/www /run /var/lib/nginx /var/log/nginx
+
+# Configure Supervisor
+COPY config/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY config/supervisor/conf.d/. /etc/supervisor/conf.d/
+
+# Copy Supervisor configurations
+COPY config/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY config/supervisor/conf.d/. /etc/supervisor/conf.d/
+RUN mkdir -p /var/log/supervisor
+RUN chown -R ${USER}:${GROUP} /var/log/supervisor
+
+# Switch to non-root user before installing Rust
+USER ${USER}
+
+# Install Rust toolchain explicitly into the user's home folder scope
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile default --default-toolchain stable
+
+# Cargo Watch
+
+# Persist cargo environment binaries straight into the container pathway
+ENV PATH="/home/${USER}/.cargo/bin:${PATH}"
+
+# Option A - (slow build): Install development helper tool for hot-reloading Cargo Watch
+#RUN cargo install cargo-watch
+# Option B - (fast build): Fetch cargo-binstall installer script natively downloading pre-compiled musl binaries for cargo-watch
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo binstall -y cargo-watch
+
+# NGINX: 80 - RUST: 8080
+EXPOSE 80 8080
+
+# Start supervisor, which manages nginx and rus app
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

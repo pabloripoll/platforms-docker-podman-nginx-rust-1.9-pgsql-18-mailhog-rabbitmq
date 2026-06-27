@@ -1,0 +1,68 @@
+FROM debian:bookworm-slim
+
+ARG UID=1000
+ARG GID=1000
+ARG USER=appuser
+ARG GROUP=appgroup
+
+ENV UID=${UID}
+ENV GID=${GID}
+ENV USER=${USER}
+ENV GROUP=${GROUP}
+
+# Install base shell utilities and development compilation dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    sudo \
+    curl \
+    wget \
+    git \
+    nano \
+    zip \
+    openssl \
+    libssl-dev \
+    pkg-config \
+    build-essential \
+    supervisor \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user and group utilizing native Debian shadow-utils syntax
+RUN groupadd -g ${GID} ${GROUP} \
+    && useradd -u ${UID} -m -d /home/${USER} -s /bin/bash -g ${GROUP} ${USER} \
+    && chmod u+s /bin/su \
+    && echo "${USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Create workspace project directory
+RUN mkdir -p /var/www
+
+# Fix Supervisor runtime directories so they don't crash under a non-root user
+RUN mkdir -p /var/log/supervisor /var/run/supervisor \
+    && chown -R ${USER}:${GROUP} /var/www /var/log/supervisor /var/run/supervisor
+
+# Copy Supervisor configurations
+COPY config/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY config/supervisor/conf.d/. /etc/supervisor/conf.d/
+
+# Switch to non-root user before installing Rust
+USER ${USER}
+WORKDIR /var/www
+
+# Install Rust toolchain explicitly into the user's home folder scope
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile default --default-toolchain stable
+
+# Persist cargo environment binaries straight into the container pathway
+ENV PATH="/home/${USER}/.cargo/bin:${PATH}"
+
+# Option A - (slow build): Install development helper tool for hot-reloading Cargo Watch
+#RUN cargo install cargo-watch
+# Option B - (fast build): Fetch cargo-binstall installer script natively downloading pre-compiled glibc/gnu binaries binaries for cargo-watch
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo binstall -y cargo-watch
+
+# NGINX: 80 - RUST: 8080
+EXPOSE 80 8080
+
+# Start supervisor, which manages nginx and rust app
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
