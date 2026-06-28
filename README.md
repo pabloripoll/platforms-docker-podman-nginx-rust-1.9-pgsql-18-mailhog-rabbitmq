@@ -8,17 +8,17 @@
 [![Open Source? Yes!](https://badgen.net/badge/Open%20Source%20%3F/Yes%21/blue?icon=github)](./)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-# NGINX + Rust 1.9 & Postgre 18+
+# NGINX + RUST 1.9 & POSTGRE 18+
 <br>
 
 This Infrastructure Platform repository is designed for back-end projects and provides three separate platforms:
 
 ## Platforms for Full-Stack Project
 
-- API: [NGINX + Rust 1.9](./platforms/nginx-rust-1.9/README.md)
-- Database: [Postgres 18](./platforms/pgsql-18/README.md)
-- Mail Service: [MailHog 1+](./platforms/mailhog-1/README.md)
-- Message Broker: [RabbitMQ 4+](./platforms/rabbitmq-4/README.md)
+- API: [NGINX + RUST 1.9](./platforms/nginx-rust-1.9/README.md)
+- Database: [POSTGRE 18](./platforms/pgsql-18/README.md)
+- Mail Service: [MAILHOG 1+](./platforms/mailhog-1/README.md)
+- Message Broker: [RABBITMQ 4+](./platforms/rabbitmq-4/README.md)
 <br><br>
 
 
