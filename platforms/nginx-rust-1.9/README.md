@@ -147,7 +147,7 @@ The default example is a server block for a REST API, but it can be use for weba
 
 ### RUST
 
-To automatically run the GO application, create the Supervisord service that runs the application. You can choose the dev or production version, and set it according to your project requirements
+To automatically run the Rust application, create the Supervisord service that runs the application. You can choose the dev or production version, and set it according to your project requirements
 
 - `./docker/config/supervisor/conf.d-sample/rust-axum.conf` -> `./docker/config/supervisor/conf.d/rust-axum.conf`
 
